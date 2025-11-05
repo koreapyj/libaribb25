@@ -33,6 +33,9 @@
     <ClCompile Include="multi2_simd.c">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="b_cas_udp.c">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arib_std_b25.h">
@@ -69,6 +72,9 @@
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="multi2_simd.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="b_cas_udp.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

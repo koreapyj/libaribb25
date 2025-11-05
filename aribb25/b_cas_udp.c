@@ -9,11 +9,17 @@
 
 #if defined(_WIN32)
 #  include <winsock2.h>
+#  include <ws2tcpip.h>
 #  include <windows.h>
 #else
 #  include <sys/socket.h>
 #  include <netdb.h>
 #  include <errno.h>
+#  define _ftprintf fprintf
+#  define GetAddrInfo getaddrinfo
+#  define FreeAddrInfo freeaddrinfo
+#  define ADDRINFOT struct addrinfo
+#  define gai_strerrorA gai_strerror
 #  define SOCKET int
 #  define INVALID_SOCKET -1
 #  if defined(DEBUG)
@@ -30,13 +36,13 @@
 	EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #endif
 
-void DumpHex(const char* prefix, uint8_t* data, size_t size) {
+void DumpHex(const TCHAR* prefix, uint8_t* data, size_t size) {
 	size_t i;
-	fprintf(stderr, "\r%s: <Buffer(%lu) ", prefix, size);
+	_ftprintf(stderr, _T("\r%s: <Buffer(%zu) "), prefix, size);
 	for (i = 0; i < size; ++i) {
-		fprintf(stderr, "%02X ", data[i]);
+		_ftprintf(stderr, _T("%02X "), data[i]);
 	}
-	fprintf(stderr, ">\r\n");
+	_ftprintf(stderr, _T(">\r\n"));
 	fflush(stderr);
 }
 
@@ -45,8 +51,8 @@ void DumpHex(const char* prefix, uint8_t* data, size_t size) {
  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
 typedef struct {
 	SOCKET 					sock;
-	const char			   *host;
-	const char			   *port;
+	const TCHAR	   *host;
+	const TCHAR	   *port;
 
 	uint8_t                *pool;
 
@@ -80,7 +86,7 @@ static int proc_emm_b_cas_udp(void *bcas, uint8_t *src, int len);
 /*+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  global function implementation
  ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*/
-B_CAS_CARD *create_b_cas_udp(const char *host, const char *port)
+B_CAS_CARD *create_b_cas_udp(const TCHAR *host, const TCHAR *port)
 {
 	int n;
 
@@ -141,7 +147,7 @@ static void release_b_cas_udp(void *bcas)
 static int init_b_cas_udp(void *bcas)
 {
 	int m;
-	long ret;
+	int ret;
 
 	B_CAS_CARD_PRIVATE_DATA *prv;
 
@@ -160,15 +166,15 @@ static int init_b_cas_udp(void *bcas)
 	}
 #endif
 
-	struct addrinfo hints = {
-		.ai_family = AF_INET,
+	ADDRINFOT hints = {
+		.ai_family = AF_UNSPEC,
 		.ai_socktype = SOCK_DGRAM,
 		.ai_flags = 0,
 		.ai_protocol = 0,
 	};
-	struct addrinfo *result, *rp;
-	if((ret = getaddrinfo(prv->host, prv->port, &hints, &result))) {
-		fprintf(stderr, "B_CAS_UDP: failed to getaddrinfo (%s)\n", gai_strerror(ret));
+	ADDRINFOT *result = NULL, *rp = NULL;
+	if((ret = GetAddrInfo(prv->host, prv->port, &hints, &result))) {
+		fprintf(stderr, "B_CAS_UDP: failed on getaddrinfo() : %s\n", gai_strerrorA(ret));
 		return B_CAS_CARD_ERROR_INVALID_PARAMETER;
 	}
 
@@ -183,9 +189,9 @@ static int init_b_cas_udp(void *bcas)
 		close(prv->sock);
 	}
 
-	freeaddrinfo(result);
+	FreeAddrInfo(result);
 	if (rp == NULL) {
-		fprintf(stderr, "B_CAS_UDP: failed to connect to server\n");
+		_ftprintf(stderr, _T("B_CAS_UDP: failed to connect to server\n"));
 		return B_CAS_CARD_ERROR_ALL_READERS_CONNECTION_FAILED;
 	}
 
@@ -202,7 +208,7 @@ static int init_b_cas_udp(void *bcas)
 #if defined(_WIN32)
 		OutputDebugString(TEXT("libaribb25: connected card reader name:"));
 #elif defined(DEBUG)
-		fprintf(stderr, "libaribb25: connected\n");
+		_ftprintf(stderr, _T("libaribb25: connected\n"));
 #endif
 		return 0;
 	}
@@ -258,7 +264,7 @@ static int proc_ecm_b_cas_udp(void *bcas, B_CAS_ECM_RESULT *dst, uint8_t *src, i
 		return B_CAS_CARD_ERROR_NOT_INITIALIZED;
 	}
 
-	DumpHex("issue", src, len);
+	DumpHex(_T("issue"), src, len);
 	if((ret = send(prv->sock, src, len, 0)) != len) {
 		if(ret == -1) {
 			fprintf(stderr, "\rB_CAS_UDP: send failed (%s)\r\n", strerror(errno));
@@ -269,11 +275,11 @@ static int proc_ecm_b_cas_udp(void *bcas, B_CAS_ECM_RESULT *dst, uint8_t *src, i
 		return B_CAS_CARD_ERROR_TRANSMIT_FAILED;
 	}
 
-	if((rlen = recv(prv->sock, prv->rbuf, B_CAS_BUFFER_MAX, MSG_WAITALL)) == -1) {
+	if((rlen = recv(prv->sock, prv->rbuf, B_CAS_BUFFER_MAX, NULL)) == -1) {
 		fprintf(stderr, "\rB_CAS_UDP: read failed (%s)\r\n", strerror(errno));
 		return B_CAS_CARD_ERROR_TRANSMIT_FAILED;
 	}
-	DumpHex("resp", prv->rbuf, rlen);
+	DumpHex(_T("resp"), prv->rbuf, rlen);
 
 #ifdef ENABLE_ARIB_STD_B1
  	// 結果の判定方法を変更
@@ -362,14 +368,12 @@ static void teardown(B_CAS_CARD_PRIVATE_DATA *prv)
 
 static int connect_card(B_CAS_CARD_PRIVATE_DATA *prv, void *reader_name)
 {
-	fprintf(stderr, "connect_card");
 	int n;
 	unsigned long rlen;
 	uint8_t *p;
 
 	rlen = sizeof(CARD_ID_INFORMATION_FIXED);
 	memcpy(prv->rbuf, CARD_ID_INFORMATION_FIXED, rlen);
-	DumpHex("card_id", prv->rbuf, rlen);
 
 #ifdef ENABLE_ARIB_STD_B1
 	if(rlen < 46){

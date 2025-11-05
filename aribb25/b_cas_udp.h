@@ -11,7 +11,7 @@ extern "C" {
 #else
 #  define TCHAR char
 #endif
-extern B_CAS_CARD *create_b_cas_udp(const char *host, const char *port);
+extern B_CAS_CARD *create_b_cas_udp(const TCHAR *host, const TCHAR *port);
 
 #ifdef __cplusplus
 }

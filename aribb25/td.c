@@ -43,8 +43,8 @@ typedef struct {
 	int32_t simd_instruction;
 	int32_t benchmark;
 #ifdef USE_UDP
-	char *host;
-	char *port;
+	TCHAR *host;
+	TCHAR *port;
 #endif
 } OPTION;
 
@@ -106,6 +106,8 @@ static void show_usage()
 {
 #ifdef USE_UDP
 #define UDP_OPT " <host> <port>"
+#else
+#define UDP_OPT ""
 #endif
 #ifdef ENABLE_ARIB_STREAM_TEST
 // arib-b1-stream-test・arib-b25-stream-test
@@ -173,8 +175,11 @@ static int parse_arg(OPTION *dst, int argc, TCHAR **argv)
 	dst->verbose = 1;
 	dst->simd_instruction = 3;
 	dst->benchmark = 0;
+
+#ifdef USE_UDP
 	dst->host = NULL;
 	dst->port = NULL;
+#endif
 
 	for(i=1;i<argc;i++){
 		if(argv[i][0] != '-'){
