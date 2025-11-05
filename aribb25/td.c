@@ -30,6 +30,9 @@
 #include "arib_std_b25.h"
 #include "arib_std_b25_error_code.h"
 #include "b_cas_card.h"
+#ifdef USE_UDP
+#include "b_cas_udp.h"
+#endif
 
 typedef struct {
 	int32_t round;
@@ -39,6 +42,10 @@ typedef struct {
 	int32_t power_ctrl;
 	int32_t simd_instruction;
 	int32_t benchmark;
+#ifdef USE_UDP
+	char *host;
+	char *port;
+#endif
 } OPTION;
 
 static void show_usage();
@@ -97,14 +104,17 @@ int _tmain(int argc, TCHAR **argv)
 
 static void show_usage()
 {
+#ifdef USE_UDP
+#define UDP_OPT " <host> <port>"
+#endif
 #ifdef ENABLE_ARIB_STREAM_TEST
 // arib-b1-stream-test・arib-b25-stream-test
 #ifdef ENABLE_ARIB_STD_B1
 	_ftprintf(stderr, _T("arib-b1-stream-test - ARIB STD-B1 test program version %s\n"), _T(VERSION_STRING));
-	_ftprintf(stderr, _T("usage: arib-b1-stream-test [options] \n"));
+	_ftprintf(stderr, _T("usage: arib-b1-stream-test [options]" UDP_OPT " \n"));
 #else
 	_ftprintf(stderr, _T("arib-b25-stream-test - ARIB STD-B25 test program version %s\n"), _T(VERSION_STRING));
-	_ftprintf(stderr, _T("usage: arib-b25-stream-test [options] \n"));
+	_ftprintf(stderr, _T("usage: arib-b25-stream-test [options]" UDP_OPT " \n"));
 #endif
 #else
 // b1・b25
@@ -117,29 +127,33 @@ static void show_usage()
 #endif
 #endif
 	_ftprintf(stderr, _T("options:\n"));
-	_ftprintf(stderr, _T("  -r round (integer, default=4)\n"));
-	_ftprintf(stderr, _T("  -s strip\n"));
-	_ftprintf(stderr, _T("     0: keep null(padding) stream (default)\n"));
-	_ftprintf(stderr, _T("     1: strip null stream\n"));
+	_ftprintf(stderr, _T("    -r round (integer, default=4)\n"));
+	_ftprintf(stderr, _T("    -s strip\n"));
+	_ftprintf(stderr, _T("       0: keep null(padding) stream (default)\n"));
+	_ftprintf(stderr, _T("       1: strip null stream\n"));
 // EMM・通電制御情報は未サポート
 #ifndef ENABLE_ARIB_STD_B1
-	_ftprintf(stderr, _T("  -m EMM\n"));
-	_ftprintf(stderr, _T("     0: ignore EMM (default)\n"));
-	_ftprintf(stderr, _T("     1: send EMM to B-CAS card\n"));
-	_ftprintf(stderr, _T("  -p power_on_control_info\n"));
-	_ftprintf(stderr, _T("     0: do nothing additionally\n"));
-	_ftprintf(stderr, _T("     1: show B-CAS EMM receiving request (default)\n"));
+	_ftprintf(stderr, _T("    -m EMM\n"));
+	_ftprintf(stderr, _T("       0: ignore EMM (default)\n"));
+	_ftprintf(stderr, _T("       1: send EMM to B-CAS card\n"));
+	_ftprintf(stderr, _T("    -p power_on_control_info\n"));
+	_ftprintf(stderr, _T("       0: do nothing additionally\n"));
+	_ftprintf(stderr, _T("       1: show B-CAS EMM receiving request (default)\n"));
 #endif
-	_ftprintf(stderr, _T("  -v verbose\n"));
-	_ftprintf(stderr, _T("     0: silent\n"));
-	_ftprintf(stderr, _T("     1: show processing status (default)\n"));
+	_ftprintf(stderr, _T("    -v verbose\n"));
+	_ftprintf(stderr, _T("       0: silent\n"));
+	_ftprintf(stderr, _T("       1: show processing status (default)\n"));
 #ifdef ENABLE_MULTI2_SIMD
-	_ftprintf(stderr, _T("  -i instruction\n"));
-	_ftprintf(stderr, _T("     0: use no SIMD instruction\n"));
-	_ftprintf(stderr, _T("     1: use SSE2 instruction if available\n"));
-	_ftprintf(stderr, _T("     2: use SSSE3 instruction if available\n"));
-	_ftprintf(stderr, _T("     3: use AVX2 instruction if available (default)\n"));
-	_ftprintf(stderr, _T("  -b MULTI2 benchmark test for SIMD\n"));
+	_ftprintf(stderr, _T("    -i instruction\n"));
+	_ftprintf(stderr, _T("       0: use no SIMD instruction\n"));
+	_ftprintf(stderr, _T("       1: use SSE2 instruction if available\n"));
+	_ftprintf(stderr, _T("       2: use SSSE3 instruction if available\n"));
+	_ftprintf(stderr, _T("       3: use AVX2 instruction if available (default)\n"));
+	_ftprintf(stderr, _T("    -b MULTI2 benchmark test for SIMD\n"));
+#endif
+#ifdef USE_UDP
+	_ftprintf(stderr, _T("<host> UDP server hostname (optional)\n"));
+	_ftprintf(stderr, _T("<port> UDP server port (optional)\n"));
 #endif
 	_ftprintf(stderr, _T("\n"));
 }
@@ -159,6 +173,8 @@ static int parse_arg(OPTION *dst, int argc, TCHAR **argv)
 	dst->verbose = 1;
 	dst->simd_instruction = 3;
 	dst->benchmark = 0;
+	dst->host = NULL;
+	dst->port = NULL;
 
 	for(i=1;i<argc;i++){
 		if(argv[i][0] != '-'){
@@ -230,6 +246,13 @@ static int parse_arg(OPTION *dst, int argc, TCHAR **argv)
 #endif
 		}
 	}
+
+#ifdef USE_UDP
+	if(i+2==argc) {
+		dst->host = &argv[i++][0];
+		dst->port = &argv[i++][0];
+	}
+#endif
 
 	return i;
 }
@@ -330,9 +353,26 @@ static void test_arib_std_b25(const TCHAR *src, const TCHAR *dst, OPTION *opt)
 	}
 #endif
 
-	bcas = create_b_cas_card();
-	if(bcas == NULL){
-		_ftprintf(stderr, _T("error - failed on create_b_cas_card()\n"));
+#ifdef USE_UDP
+	if(opt->host && opt->port) {
+		bcas = create_b_cas_udp(opt->host, opt->port);
+		if(bcas == NULL){
+			_ftprintf(stderr, _T("error - failed on create_b_cas_udp()\n"));
+			goto LAST;
+		}
+	}
+#endif
+#ifdef USE_SC
+	if(bcas == NULL) {
+		bcas = create_b_cas_card();
+		if(bcas == NULL){
+			_ftprintf(stderr, _T("error - failed on create_b_cas_card()\n"));
+			goto LAST;
+		}
+	}
+#endif
+	if(bcas == NULL) {
+		_ftprintf(stderr, _T("error - no card method\n"));
 		goto LAST;
 	}
 

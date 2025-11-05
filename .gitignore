@@ -257,3 +257,6 @@ version_b1.rc
 version_b25.rc
 *.o
 *.pc
+
+# vscode
+.vscode

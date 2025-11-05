@@ -1,5 +1,5 @@
 
-# libaribb25
+# libaribb25 with UDP card support
 
 ## このフォークについて
 
@@ -187,18 +187,25 @@ Visual Studio 2019 で arib_std_b25.sln を開きます。
 ビルドが完了すると、`Win32/Release` または `x64/Release` 以下にバイナリが生成されています。
 
 ### Ubuntu (CMake)
+#### Requirements
+```sh
+sudo apt install cmake
 
-```
-sudo apt install cmake libpcsclite1 libpcsclite-dev pkg-config
+# optional dependencies if you wish to use local smartcard reader
+sudo apt install libpcsclite1 libpcsclite-dev pkg-config
 ```
 
-あらかじめ、`cmake`・`libpcsclite1`・`libpcsclite-dev`・`pkg-config` のインストールが必要です。
-
-```
+#### Build Procedure
+```sh
 cmake -B build
 cd build
 make
 sudo make install
+```
+
+##### UDP card
+```sh
+cmake -DNO_SC=1 -DUSE_UDP=1 -B build
 ```
 
 `cmake -B build` で `build/` ディレクトリに Makefile を生成してから、`make` でビルドを実行します。
