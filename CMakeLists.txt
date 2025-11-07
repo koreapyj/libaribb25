@@ -47,15 +47,15 @@ set(ARIBB1_LIB_NAME "aribb1")
 set(ARIBB1_CMD_NAME "b1")
 set(ARIBB1_STREAM_TEST_NAME "arib-b1-stream-test")
 
-set(ARIBB1_URL "https://github.com/tsukumijima/libaribb25")
+set(ARIBB1_URL "https://github.com/koreapyj/libaribb25")
 set(ARIBB1_DESCRIPTION "Reference implementation of ARIB STD-B1")
-set(ARIBB1_COMPANY "㋲製作所")
-set(ARIBB1_COPYRIGHT "©2012 茂木 和洋")
+set(ARIBB1_COMPANY "koreapyj")
+set(ARIBB1_COPYRIGHT "Apache 2.0")
 set(ARIBB1_PRODUCT "ARIB STD-B1")
 
 set(ARIBB1_MAJOR_VERSION "0")
 set(ARIBB1_MINOR_VERSION "2")
-set(ARIBB1_PATCH_VERSION "9")
+set(ARIBB1_PATCH_VERSION "10")
 set(ARIBB1_VERSION_NUMBER ${ARIBB1_MAJOR_VERSION}.${ARIBB1_MINOR_VERSION}.${ARIBB1_PATCH_VERSION})
 set(ARIBB1_VERSION_STRING ${ARIBB1_VERSION_NUMBER})
 
@@ -65,15 +65,15 @@ set(ARIBB25_LIB_NAME "aribb25")
 set(ARIBB25_CMD_NAME "b25")
 set(ARIBB25_STREAM_TEST_NAME "arib-b25-stream-test")
 
-set(ARIBB25_URL "https://github.com/tsukumijima/libaribb25")
+set(ARIBB25_URL "https://github.com/koreapyj/libaribb25")
 set(ARIBB25_DESCRIPTION "Reference implementation of ARIB STD-B25")
-set(ARIBB25_COMPANY "㋲製作所")
-set(ARIBB25_COPYRIGHT "©2012 茂木 和洋")
+set(ARIBB25_COMPANY "koreapyj")
+set(ARIBB25_COPYRIGHT "Apache 2.0")
 set(ARIBB25_PRODUCT "ARIB STD-B25")
 
 set(ARIBB25_MAJOR_VERSION "0")
 set(ARIBB25_MINOR_VERSION "2")
-set(ARIBB25_PATCH_VERSION "9")
+set(ARIBB25_PATCH_VERSION "10")
 set(ARIBB25_VERSION_NUMBER ${ARIBB25_MAJOR_VERSION}.${ARIBB25_MINOR_VERSION}.${ARIBB25_PATCH_VERSION})
 set(ARIBB25_VERSION_STRING ${ARIBB25_VERSION_NUMBER})
 
@@ -145,10 +145,35 @@ if(NOT NO_SC)
 	set(B_CAS_CARD_SRC aribb25/b_cas_card.c)
 	add_definitions("-DUSE_SC")
 endif()
+
 if(USE_UDP)
 	set(B_CAS_CARD_SRC ${B_CAS_CARD_SRC} aribb25/b_cas_udp.c)
 	set(B_CAS_CARD_HDR ${B_CAS_CARD_HDR} aribb25/b_cas_udp.h)
+	set(PCSC_LIBRARIES ${PCSC_LIBRARIES} ws2_32)
 	add_definitions("-DUSE_UDP")
+endif()
+
+if(USE_COBALTCAS)
+	include(FetchContent)
+	FetchContent_Declare(
+		libcobaltcas
+		GIT_REPOSITORY https://github.com/CobaltCas/CobaltCas
+		GIT_TAG master
+	)
+	FetchContent_MakeAvailable(libcobaltcas)
+	set(B_CAS_CARD_SRC ${B_CAS_CARD_SRC}
+		${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src/card.cpp
+		${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src/crypto.cpp
+		${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src/key_manager.cpp
+		${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src/log.cpp
+		${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src/utils.cpp
+		aribb25/b_cas_cobalt.cpp
+	)
+	set(B_CAS_CARD_HDR ${B_CAS_CARD_HDR}
+		aribb25/b_cas_cobalt.h
+	)
+	include_directories(${CMAKE_BINARY_DIR}/_deps/libcobaltcas-src/src)
+	add_definitions("-DUSE_COBALTCAS")
 endif()
 
 # ---------- libaribb1 ----------
@@ -166,22 +191,22 @@ set_target_properties(aribb1-static PROPERTIES OUTPUT_NAME ${ARIBB1_LIB_NAME})
 target_link_libraries(aribb1-static PRIVATE ${PCSC_LIBRARIES})
 target_compile_definitions(aribb1-static PRIVATE ENABLE_ARIB_STD_B1)
 
-add_library(aribb1-shared SHARED $<TARGET_OBJECTS:aribb1-objlib> ${CMAKE_CURRENT_BINARY_DIR}/version_b1.rc)
-set_target_properties(aribb1-shared PROPERTIES MACOSX_RPATH ON)
-set_target_properties(aribb1-shared PROPERTIES DEFINE_SYMBOL ARIBB1_DLL)
-set_target_properties(aribb1-shared PROPERTIES COMPILE_DEFINITIONS ARIBB1_DLL)
-set_target_properties(aribb1-shared PROPERTIES OUTPUT_NAME ${ARIBB1_LIB_NAME})
-set_target_properties(aribb1-shared PROPERTIES SOVERSION ${ARIBB1_MAJOR_VERSION})
-set_target_properties(aribb1-shared PROPERTIES VERSION ${ARIBB1_VERSION_NUMBER})
-target_link_libraries(aribb1-shared PRIVATE ${PCSC_LIBRARIES})
-target_compile_definitions(aribb1-shared PRIVATE ENABLE_ARIB_STD_B1)
+# add_library(aribb1-shared SHARED $<TARGET_OBJECTS:aribb1-objlib> ${CMAKE_CURRENT_BINARY_DIR}/version_b1.rc)
+# set_target_properties(aribb1-shared PROPERTIES MACOSX_RPATH ON)
+# set_target_properties(aribb1-shared PROPERTIES DEFINE_SYMBOL ARIBB1_DLL)
+# set_target_properties(aribb1-shared PROPERTIES COMPILE_DEFINITIONS ARIBB1_DLL)
+# set_target_properties(aribb1-shared PROPERTIES OUTPUT_NAME ${ARIBB1_LIB_NAME})
+# set_target_properties(aribb1-shared PROPERTIES SOVERSION ${ARIBB1_MAJOR_VERSION})
+# set_target_properties(aribb1-shared PROPERTIES VERSION ${ARIBB1_VERSION_NUMBER})
+# target_link_libraries(aribb1-shared PRIVATE ${PCSC_LIBRARIES})
+# target_compile_definitions(aribb1-shared PRIVATE ENABLE_ARIB_STD_B1)
 
 # ---------- b1 (executable) ----------
 
 add_executable(b1 aribb25/td.c ${CMAKE_CURRENT_BINARY_DIR}/version_b1.rc)
 set_target_properties(b1 PROPERTIES OUTPUT_NAME ${ARIBB1_CMD_NAME})
 target_link_libraries(b1 PRIVATE ${PCSC_LIBRARIES})
-target_link_libraries(b1 PRIVATE aribb1-shared)
+target_link_libraries(b1 PRIVATE aribb1-static)
 target_compile_definitions(b1 PRIVATE ENABLE_ARIB_STD_B1)
 
 configure_file(aribb25/config.h.in config.h @ONLY)
@@ -192,7 +217,7 @@ configure_file(aribb25/version_b1.rc.in version_b1.rc @ONLY)
 add_executable(arib-b1-stream-test aribb25/td.c ${CMAKE_CURRENT_BINARY_DIR}/version_b1.rc)
 set_target_properties(arib-b1-stream-test PROPERTIES OUTPUT_NAME ${ARIBB1_STREAM_TEST_NAME})
 target_link_libraries(arib-b1-stream-test PRIVATE ${PCSC_LIBRARIES})
-target_link_libraries(arib-b1-stream-test PRIVATE aribb1-shared)
+target_link_libraries(arib-b1-stream-test PRIVATE aribb1-static)
 target_compile_definitions(arib-b1-stream-test PRIVATE ENABLE_ARIB_STD_B1)
 target_compile_definitions(arib-b1-stream-test PRIVATE ENABLE_ARIB_STREAM_TEST)
 
@@ -212,21 +237,21 @@ add_library(aribb25-static STATIC $<TARGET_OBJECTS:aribb25-objlib>)
 set_target_properties(aribb25-static PROPERTIES OUTPUT_NAME ${ARIBB25_LIB_NAME})
 target_link_libraries(aribb25-static PRIVATE ${PCSC_LIBRARIES})
 
-add_library(aribb25-shared SHARED $<TARGET_OBJECTS:aribb25-objlib> ${CMAKE_CURRENT_BINARY_DIR}/version_b25.rc)
-set_target_properties(aribb25-shared PROPERTIES MACOSX_RPATH ON)
-set_target_properties(aribb25-shared PROPERTIES DEFINE_SYMBOL ARIBB25_DLL)
-set_target_properties(aribb25-shared PROPERTIES COMPILE_DEFINITIONS ARIBB25_DLL)
-set_target_properties(aribb25-shared PROPERTIES OUTPUT_NAME ${ARIBB25_LIB_NAME})
-set_target_properties(aribb25-shared PROPERTIES SOVERSION ${ARIBB25_MAJOR_VERSION})
-set_target_properties(aribb25-shared PROPERTIES VERSION ${ARIBB25_VERSION_NUMBER})
-target_link_libraries(aribb25-shared PRIVATE ${PCSC_LIBRARIES})
+# add_library(aribb25-shared SHARED $<TARGET_OBJECTS:aribb25-objlib> ${CMAKE_CURRENT_BINARY_DIR}/version_b25.rc)
+# set_target_properties(aribb25-shared PROPERTIES MACOSX_RPATH ON)
+# set_target_properties(aribb25-shared PROPERTIES DEFINE_SYMBOL ARIBB25_DLL)
+# set_target_properties(aribb25-shared PROPERTIES COMPILE_DEFINITIONS ARIBB25_DLL)
+# set_target_properties(aribb25-shared PROPERTIES OUTPUT_NAME ${ARIBB25_LIB_NAME})
+# set_target_properties(aribb25-shared PROPERTIES SOVERSION ${ARIBB25_MAJOR_VERSION})
+# set_target_properties(aribb25-shared PROPERTIES VERSION ${ARIBB25_VERSION_NUMBER})
+# target_link_libraries(aribb25-shared PRIVATE ${PCSC_LIBRARIES})
 
 # ---------- b25 (executable) ----------
 
 add_executable(b25 aribb25/td.c ${CMAKE_CURRENT_BINARY_DIR}/version_b25.rc)
 set_target_properties(b25 PROPERTIES OUTPUT_NAME ${ARIBB25_CMD_NAME})
 target_link_libraries(b25 PRIVATE ${PCSC_LIBRARIES})
-target_link_libraries(b25 PRIVATE aribb25-shared)
+target_link_libraries(b25 PRIVATE aribb25-static)
 
 configure_file(aribb25/config.h.in config.h @ONLY)
 configure_file(aribb25/version_b25.rc.in version_b25.rc @ONLY)
@@ -236,7 +261,7 @@ configure_file(aribb25/version_b25.rc.in version_b25.rc @ONLY)
 add_executable(arib-b25-stream-test aribb25/td.c ${CMAKE_CURRENT_BINARY_DIR}/version_b25.rc)
 set_target_properties(arib-b25-stream-test PROPERTIES OUTPUT_NAME ${ARIBB25_STREAM_TEST_NAME})
 target_link_libraries(arib-b25-stream-test PRIVATE ${PCSC_LIBRARIES})
-target_link_libraries(arib-b25-stream-test PRIVATE aribb25-shared)
+target_link_libraries(arib-b25-stream-test PRIVATE aribb25-static)
 target_compile_definitions(arib-b25-stream-test PRIVATE ENABLE_ARIB_STREAM_TEST)
 
 configure_file(aribb25/config.h.in config.h @ONLY)
@@ -254,11 +279,11 @@ if(UNIX AND NOT CYGWIN)
 	add_custom_command(TARGET create_symlinks COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB1_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX} symlink-${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB1_LIB_NAME})
 	add_custom_command(TARGET create_symlinks COMMAND ${CMAKE_COMMAND} -E create_symlink aribb1 symlink-${ARIBB1_LIB_NAME})
 	add_dependencies(aribb1-static create_symlinks)
-	add_dependencies(aribb1-shared create_symlinks)
+	# add_dependencies(aribb1-shared create_symlinks)
 
 	install(TARGETS b1 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 	install(TARGETS arib-b1-stream-test RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-	install(TARGETS aribb1-static aribb1-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	# install(TARGETS aribb1-static aribb1-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 	install(DIRECTORY DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb1)
 	install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb1)
 	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB1_LIB_NAME}.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
@@ -272,11 +297,11 @@ if(UNIX AND NOT CYGWIN)
 	add_custom_command(TARGET create_symlinks COMMAND ${CMAKE_COMMAND} -E create_symlink ${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB25_LIB_NAME}${CMAKE_SHARED_LIBRARY_SUFFIX} symlink-${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB25_LIB_NAME})
 	add_custom_command(TARGET create_symlinks COMMAND ${CMAKE_COMMAND} -E create_symlink aribb25 symlink-${ARIBB25_LIB_NAME})
 	add_dependencies(aribb25-static create_symlinks)
-	add_dependencies(aribb25-shared create_symlinks)
+	# add_dependencies(aribb25-shared create_symlinks)
 
 	install(TARGETS b25 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 	install(TARGETS arib-b25-stream-test RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-	install(TARGETS aribb25-static aribb25-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	# install(TARGETS aribb25-static aribb25-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 	install(DIRECTORY DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb25)
 	install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb25)
 	install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_SHARED_LIBRARY_PREFIX}${ARIBB25_LIB_NAME}.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
@@ -293,19 +318,19 @@ if(UNIX AND NOT CYGWIN)
 
 elseif(WIN32)
 
-	# ---------- libaribb1 ----------
+	# # ---------- libaribb1 ----------
 
-	install(TARGETS b1 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-	install(TARGETS aribb1-static aribb1-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
-	install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb1)
+	# install(TARGETS b1 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+	# # install(TARGETS aribb1-static aribb1-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	# install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb1)
 
-	# ---------- libaribb25 ----------
+	# # ---------- libaribb25 ----------
 
-	install(TARGETS b25 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-	install(TARGETS aribb25-static aribb25-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
-	install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb25)
+	# install(TARGETS b25 RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+	# # install(TARGETS aribb25-static aribb25-shared ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} RUNTIME DESTINATION ${CMAKE_INSTALL_LIBDIR})
+	# install(FILES aribb25/arib_std_b25_error_code.h aribb25/arib_std_b25.h aribb25/b_cas_card_error_code.h ${B_CAS_CARD_HDR} aribb25/multi2.h aribb25/portable.h aribb25/simd_instruction_type.h aribb25/ts_common_types.h aribb25/ts_section_parser_error_code.h aribb25/ts_section_parser.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/aribb25)
 
-	add_custom_target(uninstall ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Uninstall.cmake)
+	# add_custom_target(uninstall ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/Uninstall.cmake)
 
 endif()
 

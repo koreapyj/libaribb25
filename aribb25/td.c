@@ -33,6 +33,11 @@
 #ifdef USE_UDP
 #include "b_cas_udp.h"
 #endif
+#ifndef ENABLE_ARIB_STD_B1
+#ifdef USE_COBALTCAS
+#include "b_cas_cobalt.h"
+#endif
+#endif
 
 typedef struct {
 	int32_t round;
@@ -359,7 +364,7 @@ static void test_arib_std_b25(const TCHAR *src, const TCHAR *dst, OPTION *opt)
 #endif
 
 #ifdef USE_UDP
-	if(opt->host && opt->port) {
+	if(bcas == NULL && opt->host && opt->port) {
 		bcas = create_b_cas_udp(opt->host, opt->port);
 		if(bcas == NULL){
 			_ftprintf(stderr, _T("error - failed on create_b_cas_udp()\n"));
@@ -376,6 +381,19 @@ static void test_arib_std_b25(const TCHAR *src, const TCHAR *dst, OPTION *opt)
 		}
 	}
 #endif
+
+#ifndef ENABLE_ARIB_STD_B1
+#ifdef USE_COBALTCAS
+	if(bcas == NULL) {
+		bcas = create_b_cas_cobalt();
+		if(bcas == NULL){
+			_ftprintf(stderr, _T("error - failed on create_b_cas_cobalt()\n"));
+			goto LAST;
+		}
+	}
+#endif
+#endif
+
 	if(bcas == NULL) {
 		_ftprintf(stderr, _T("error - no card method\n"));
 		goto LAST;
